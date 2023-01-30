@@ -1,0 +1,402 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>ps3_atrela_EKF</title><meta name="generator" content="MATLAB 9.12"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2022-11-19"><meta name="DC.source" content="ps3_atrela_EKF.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput"><span class="comment">% Title: Problem Set 3</span>
+<span class="comment">% File Topic: EKF</span>
+<span class="comment">% Author: Alec Trela</span>
+<span class="comment">% Date: 11, November 2022</span>
+<span class="comment">% ============================================</span>
+
+clc
+clear
+
+<span class="comment">% load sim data</span>
+load(<span class="string">"calibration.mat"</span>)
+load(<span class="string">"kfData.mat"</span>)
+
+<span class="comment">% Time Step</span>
+T = 0.01;
+
+<span class="comment">% ===================== Find process noise ================================</span>
+
+<span class="comment">% Linearize the system about each state</span>
+<span class="keyword">for</span> i = 1:length(q_groundtruth) - 1
+
+    <span class="comment">% Linearized approx of the system: q[k+1] = F(q[k], u[k])q[k] + G(q[k])u[k] + &#915;(q[k])v[k]</span>
+    F_lin(:, :, i) = [1, 0, -T * (u(1, i)) * sin(q_groundtruth(3, i));
+                      0, 1,  T * (u(1, i)) * cos(q_groundtruth(3, i));
+                      0, 0,                      1];
+
+    G_lin(:, :, i) = [T * cos(q_groundtruth(3, i)), 0;
+                      T * sin(q_groundtruth(3, i)), 0;
+                      0            , T];
+
+    tau_lin(:, :, i) = [T * cos(q_groundtruth(3, i)), 0;
+                        T * sin(q_groundtruth(3, i)), 0;
+                        0            , T];
+
+    <span class="comment">% Derive the process noise by rearranging terms:</span>
+    <span class="comment">% v[k] = pinv( &#915;(q[k]) ) * ( q[k+1] - F(q[k], u[k])q[k] - G(q[k])u[k] )</span>
+    process_noise(i, :) = tau_lin(:, :, i) \ ( q_groundtruth(:, i + 1) - F_lin(:, :, i) * q_groundtruth(:, i) - G_lin(:, :, i) * u(:, i) );
+
+
+<span class="keyword">end</span>
+
+<span class="comment">% Generate the covarience of the process noise</span>
+covV = cov(process_noise);
+
+disp(<span class="string">"Process Covariance (V):"</span>)
+disp(covV)
+
+<span class="comment">% ======================== find sensor noise ===============================</span>
+
+<span class="comment">% Find the y that correponds to q ground truth</span>
+<span class="comment">% i.e. not all time points have sensor data</span>
+<span class="keyword">for</span> i = 1:length(t_y)
+
+    j = find(t_groundTruth == t_y(i));
+    q_relevant(1:2, j) = q_groundtruth(1:2, j);
+
+<span class="keyword">end</span>
+
+<span class="comment">% Additional filtering step: find() doesn't remove zeros</span>
+a = q_relevant(1, q_relevant(1, :) ~= 0);
+b = q_relevant(2, q_relevant(2, :) ~= 0);
+q_relevant = [a;b];
+
+<span class="comment">% Find the noise covariance</span>
+<span class="comment">% i.e. how different is the sens</span>
+covW = cov(transpose(y - q_relevant));
+<span class="comment">% Scale down covariance W</span>
+<span class="comment">%covW = covW / 100;</span>
+
+disp(<span class="string">"Sensor Covariance (W):"</span>)
+disp(covW)
+
+<span class="comment">% ======================= Dead Reckoner ==================================</span>
+
+<span class="comment">% Generate random noise (Gaussian White: N(0, W), N(0, V)</span>
+w = mvnrnd([0, 0], covW, length(t));
+v = mvnrnd([0, 0], covV, length(t));
+
+
+<span class="comment">% Set initial conditions</span>
+qhat_i = [0.355; -1.590; 0.682];
+q_dr(:, 1) = qhat_i;
+
+
+<span class="keyword">for</span> i = 1:length(t) - 1
+
+    <span class="comment">% EKF doesn't need to linearize to predict the mean</span>
+    q_dr(1, i + 1) = q_dr(1, i) + T * (u(1, i) + v(i, 1)) * cos(q_dr(3, i));
+    q_dr(2, i + 1) = q_dr(2, i) + T * (u(1, i) + v(i, 1)) * sin(q_dr(3, i));
+    q_dr(3, i + 1) = q_dr(3, i) + T * (u(2, i) + v(i, 2));
+
+<span class="keyword">end</span>
+
+<span class="comment">% Plot Dead Reckoner</span>
+<span class="comment">% Ground truth plot</span>
+figure(1)
+plot(q_dr(1, :), q_dr(2, :))
+hold <span class="string">on</span>
+plot(q_groundtruth(1, :), q_groundtruth(2, :), LineWidth=2)
+hold <span class="string">off</span>
+xlabel(<span class="string">"Positon X (m)"</span>)
+ylabel(<span class="string">"Position Y (m)"</span>)
+legend(<span class="string">'Dead Reckoner Estimate'</span>, <span class="string">"Ground truth"</span>)
+title(<span class="string">"Dead Reckoner Position Estimate"</span>)
+
+<span class="comment">%  ================= Full Extended Kalman Filter ==========================</span>
+
+<span class="comment">% Set initial conditions for covariance</span>
+P =  [25, 0, 0;
+      0, 25, 0;
+      0, 0, 0.154];
+
+<span class="comment">% H, h are the same here: we only want the first two states in the output</span>
+H = [1, 0, 0;
+     0, 1, 0];
+
+<span class="comment">% init state</span>
+q_ekf(:, 1) = qhat_i;
+<span class="keyword">for</span> i = 1:length(t) - 1
+
+    <span class="comment">% EKF doesn't need to linearize to predict the mean</span>
+    q_ekf(1, i + 1) = q_ekf(1, i) + T * (u(1, i) + v(i, 1)) * cos(q_ekf(3, i));
+    q_ekf(2, i + 1) = q_ekf(2, i) + T * (u(1, i) + v(i, 1)) * sin(q_ekf(3, i));
+    q_ekf(3, i + 1) = q_ekf(3, i) + T * (u(2, i) + v(i, 2));
+
+
+     <span class="comment">%update the covariance matrix (we have F, Tau from deriving process</span>
+     <span class="comment">%noise)</span>
+     P = F_lin(:, :, i) * P * transpose(F_lin(:, :, i)) +  tau_lin(:, :, i) * covV * transpose(tau_lin(:, :, i));
+
+    <span class="keyword">if</span> ismember(t(i), t_y)
+
+        GPS = y(:, i/10);
+
+        <span class="comment">%update step: find S</span>
+        S = H * P * transpose(H) + covW;
+
+        <span class="comment">%update x</span>
+        q_ekf(:, i + 1) = q_ekf(:, i + 1) + P * transpose(H) * inv(S) * (GPS - H * q_ekf(:, i + 1));
+
+        <span class="comment">%covarience update</span>
+        P = P - P * transpose(H) * inv(S) * H * P;
+
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+
+<span class="comment">% plot EKF</span>
+figure(2)
+plot(q_groundtruth(1, :), q_groundtruth(2, :))
+hold <span class="string">on</span>
+plot(q_ekf(1, :), q_ekf(2, :))
+hold <span class="string">on</span>
+scatter(y(1, :), y(2, :))
+hold <span class="string">off</span>
+legend([<span class="string">"Ground Truth"</span>, <span class="string">"EKF Estimate of State"</span>, <span class="string">"GPS Readings"</span>])
+xlabel(<span class="string">"Positon X (m)"</span>)
+ylabel(<span class="string">"Position Y (m)"</span>)
+title(<span class="string">"EKF Position Estimate"</span>)
+</pre><pre class="codeoutput">Process Covariance (V):
+    0.2591    0.0010
+    0.0010    0.0625
+
+Sensor Covariance (W):
+    1.8817    0.0632
+    0.0632    2.1384
+
+</pre><img vspace="5" hspace="5" src="ps3_atrela_EKF_01.png" alt=""> <img vspace="5" hspace="5" src="ps3_atrela_EKF_02.png" alt=""> <p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+% Title: Problem Set 3
+% File Topic: EKF
+% Author: Alec Trela 
+% Date: 11, November 2022
+% ============================================
+
+clc
+clear
+
+% load sim data
+load("calibration.mat")
+load("kfData.mat")
+
+% Time Step
+T = 0.01;
+
+% ===================== Find process noise ================================
+
+% Linearize the system about each state
+for i = 1:length(q_groundtruth) - 1
+
+    % Linearized approx of the system: q[k+1] = F(q[k], u[k])q[k] + G(q[k])u[k] + Γ(q[k])v[k]
+    F_lin(:, :, i) = [1, 0, -T * (u(1, i)) * sin(q_groundtruth(3, i));
+                      0, 1,  T * (u(1, i)) * cos(q_groundtruth(3, i));
+                      0, 0,                      1];
+
+    G_lin(:, :, i) = [T * cos(q_groundtruth(3, i)), 0;
+                      T * sin(q_groundtruth(3, i)), 0;
+                      0            , T];
+
+    tau_lin(:, :, i) = [T * cos(q_groundtruth(3, i)), 0;
+                        T * sin(q_groundtruth(3, i)), 0;
+                        0            , T];
+    
+    % Derive the process noise by rearranging terms: 
+    % v[k] = pinv( Γ(q[k]) ) * ( q[k+1] - F(q[k], u[k])q[k] - G(q[k])u[k] )
+    process_noise(i, :) = tau_lin(:, :, i) \ ( q_groundtruth(:, i + 1) - F_lin(:, :, i) * q_groundtruth(:, i) - G_lin(:, :, i) * u(:, i) );
+
+
+end
+
+% Generate the covarience of the process noise 
+covV = cov(process_noise);
+
+disp("Process Covariance (V):")
+disp(covV)
+
+% ======================== find sensor noise ===============================
+
+% Find the y that correponds to q ground truth
+% i.e. not all time points have sensor data
+for i = 1:length(t_y)
+    
+    j = find(t_groundTruth == t_y(i));
+    q_relevant(1:2, j) = q_groundtruth(1:2, j);   
+    
+end
+
+% Additional filtering step: find() doesn't remove zeros
+a = q_relevant(1, q_relevant(1, :) ~= 0);
+b = q_relevant(2, q_relevant(2, :) ~= 0);
+q_relevant = [a;b];
+
+% Find the noise covariance
+% i.e. how different is the sens
+covW = cov(transpose(y - q_relevant));
+% Scale down covariance W
+%covW = covW / 100;
+
+disp("Sensor Covariance (W):")
+disp(covW)
+
+% ======================= Dead Reckoner ==================================
+
+% Generate random noise (Gaussian White: N(0, W), N(0, V)
+w = mvnrnd([0, 0], covW, length(t));
+v = mvnrnd([0, 0], covV, length(t));
+
+
+% Set initial conditions
+qhat_i = [0.355; -1.590; 0.682];
+q_dr(:, 1) = qhat_i;
+
+
+for i = 1:length(t) - 1
+
+    % EKF doesn't need to linearize to predict the mean
+    q_dr(1, i + 1) = q_dr(1, i) + T * (u(1, i) + v(i, 1)) * cos(q_dr(3, i));
+    q_dr(2, i + 1) = q_dr(2, i) + T * (u(1, i) + v(i, 1)) * sin(q_dr(3, i));
+    q_dr(3, i + 1) = q_dr(3, i) + T * (u(2, i) + v(i, 2));
+   
+end
+
+% Plot Dead Reckoner
+% Ground truth plot
+figure(1)
+plot(q_dr(1, :), q_dr(2, :))
+hold on 
+plot(q_groundtruth(1, :), q_groundtruth(2, :), LineWidth=2)
+hold off
+xlabel("Positon X (m)")
+ylabel("Position Y (m)")
+legend('Dead Reckoner Estimate', "Ground truth")
+title("Dead Reckoner Position Estimate")
+
+%  ================= Full Extended Kalman Filter ==========================
+
+% Set initial conditions for covariance
+P =  [25, 0, 0;
+      0, 25, 0;
+      0, 0, 0.154];
+
+% H, h are the same here: we only want the first two states in the output
+H = [1, 0, 0;
+     0, 1, 0];
+
+% init state 
+q_ekf(:, 1) = qhat_i;
+for i = 1:length(t) - 1
+
+    % EKF doesn't need to linearize to predict the mean
+    q_ekf(1, i + 1) = q_ekf(1, i) + T * (u(1, i) + v(i, 1)) * cos(q_ekf(3, i));
+    q_ekf(2, i + 1) = q_ekf(2, i) + T * (u(1, i) + v(i, 1)) * sin(q_ekf(3, i));
+    q_ekf(3, i + 1) = q_ekf(3, i) + T * (u(2, i) + v(i, 2));
+
+   
+     %update the covariance matrix (we have F, Tau from deriving process
+     %noise)
+     P = F_lin(:, :, i) * P * transpose(F_lin(:, :, i)) +  tau_lin(:, :, i) * covV * transpose(tau_lin(:, :, i));
+
+    if ismember(t(i), t_y)
+        
+        GPS = y(:, i/10);
+
+        %update step: find S
+        S = H * P * transpose(H) + covW;
+        
+        %update x
+        q_ekf(:, i + 1) = q_ekf(:, i + 1) + P * transpose(H) * inv(S) * (GPS - H * q_ekf(:, i + 1));
+        
+        %covarience update
+        P = P - P * transpose(H) * inv(S) * H * P;
+
+    end
+
+end
+
+
+% plot EKF
+figure(2)
+plot(q_groundtruth(1, :), q_groundtruth(2, :))
+hold on
+plot(q_ekf(1, :), q_ekf(2, :))
+hold on 
+scatter(y(1, :), y(2, :))
+hold off
+legend(["Ground Truth", "EKF Estimate of State", "GPS Readings"])
+xlabel("Positon X (m)")
+ylabel("Position Y (m)")
+title("EKF Position Estimate")
+
+##### SOURCE END #####
+--></body></html>
