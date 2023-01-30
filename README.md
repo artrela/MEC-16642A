@@ -67,7 +67,7 @@ SLAM and vision-based odometry.*
 # Assignment 3:
 
 ![ekf](https://github.com/artrela/MEC-16642A/blob/master/Results/ekf.png)<br>
-**Description:** *Simulated results for state-estimation of a differential drive robot using an extended Kalman Filter*<br>
+**Description:** *Simulated results for state-estimation of a differential drive robot using an extended Kalman Filter*<br><br>
 ![pf](https://github.com/artrela/MEC-16642A/blob/master/Results/particle-filter.gif)<br>
 **Description:** *Particle filter for probabilistic state-estimation of a differential drive robot.*
 
