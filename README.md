@@ -36,8 +36,8 @@ SLAM and vision-based odometry.*
 
 # Assignment 1: 
 
-![pendulum-cart]()<br>
-**Description:** **
+![pendulum-cart](https://github.com/artrela/MEC-16642A/blob/master/Results/inverted-pendulum.png)<br>
+**Description:** *Inverted-pendulum on a cart, the non-linear system that control system that was analyzed in assignment one.*
 
 
 ## Topics Covered:
@@ -52,8 +52,8 @@ SLAM and vision-based odometry.*
 
 # Assignment 2:
 
-![observer]()<br>
-**Description:** **
+![observer](https://github.com/artrela/MEC-16642A/blob/master/Results/observer-result.png)<br>
+**Description:** *Results of state-estimation on the inverted-pendulum on a cart system.*
 
 ## Topics Covered:
 - Closed-Loop feedback with unity negative feedback
@@ -66,10 +66,10 @@ SLAM and vision-based odometry.*
 
 # Assignment 3:
 
-![ekf]()<br>
-![pf]()<br>
-**Description:** **
-
+![ekf](https://github.com/artrela/MEC-16642A/blob/master/Results/ekf.png)<br>
+**Description:** *Simulated results for state-estimation of a differential drive robot using an extended Kalman Filter*<br>
+![pf](https://github.com/artrela/MEC-16642A/blob/master/Results/particle-filter.gif)<br>
+**Description:** *Particle filter for probabilistic state-estimation of a differential drive robot.*
 
 ## Topics Covered:
 - Extended Kalman Filter
@@ -80,8 +80,8 @@ SLAM and vision-based odometry.*
 
 # Assignment 4:
 
-![htm]()<br>
-**Description:** **
+![htm](https://github.com/artrela/MEC-16642A/blob/master/Results/robot-manip.png)<br>
+**Description:** *Robot manipulator diagram, used to develop a DH table in assignment 4.*
 
 
 ## Topics Covered:
